@@ -55,7 +55,7 @@ dependencies = [
 all_extras = [
     "matplotlib>=3.2.0",
     "ecos>=2.0.14,<2.1",
-    "plotly>=5.0.0,<7",
+    "plotly>=5.0.0,<8",
     "cvxopt; python_version < '3.14'",
 ]
 
