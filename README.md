@@ -25,6 +25,17 @@ strategies, PyPortfolioOpt can help you combine your alpha sources in a risk-eff
 
 Head over to the **[documentation on ReadTheDocs](https://pyportfolioopt.readthedocs.io/en/latest/)** to get an in-depth look at the project, or check out the [cookbook](https://github.com/pyportfolio/pyportfolioopt/tree/main/cookbook) to see some examples showing the full process from downloading data to building a portfolio.
 
+### Demand and supply analysis in the local runner
+
+This checkout includes `portfolio_optimizer.py`, a separate interactive runner that
+downloads one, three, or five years of OHLCV data for its configured tickers. In
+addition to portfolio weights, it prints preferred buying and selling price ranges
+from the strongest valid historical demand and supply zones. These technical zones
+are informational and are not inputs to the PyPortfolioOpt optimiser.
+
+Run it with `python portfolio_optimizer.py` after installing the runner dependency:
+`pip install yfinance`.
+
 <center>
 <img src="https://github.com/PyPortfolio/PyPortfolioOpt/blob/main/media/conceptual_flowchart_v2.png?raw=true" style="width:70%;"/>
 </center>

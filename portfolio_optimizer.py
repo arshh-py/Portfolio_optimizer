@@ -7,6 +7,7 @@ import time
 from pypfopt import EfficientFrontier
 from pypfopt import risk_models
 from pypfopt import expected_returns
+from pypfopt.demand_supply import detect_demand_supply_zones
 from pypfopt.discrete_allocation import (
     DiscreteAllocation,
     get_latest_prices
@@ -17,17 +18,27 @@ from pypfopt.discrete_allocation import (
 # ==========================================
 
 TICKERS = [
-    "RELIANCE.NS",
-    "TCS.NS",
-    "INFY.NS",
-    "HDFCBANK.NS",
-    "ITC.NS"
+    "SHRIRAMFIN.NS",
+    "TMPV.NS",
+    "BSE.NS",
+    "M&M.NS",
+    "ITC.NS",
+
 ]
 
 RISK_FREE_RATE = 0.06
 INVESTMENT_AMOUNT = 10000
 MAX_RETRIES = 3
 TRADING_DAYS_PER_YEAR = 252
+
+
+def history_column(history, column):
+    """Return one numeric yfinance column for a single ticker download."""
+    values = history[column]
+    if isinstance(values, pd.DataFrame):
+        values = values.iloc[:, 0]
+    return pd.to_numeric(values, errors="coerce")
+
 
 # ==========================================
 # 1. GET USER INPUT
@@ -67,6 +78,7 @@ print("Expected trading days:", expected_trading_days)
 print("\nDownloading stock data...")
 
 stock_data = []
+ohlcv_data = {}
 
 for ticker in TICKERS:
 
@@ -87,13 +99,14 @@ for ticker in TICKERS:
             if history.empty:
                 raise ValueError("No historical data received.")
 
-            close = history["Close"]
+            close = history_column(history, "Close").dropna()
 
-            if isinstance(close, pd.DataFrame):
-                close = close.iloc[:, 0]
-
-            close = pd.to_numeric(close, errors="coerce")
-            close = close.dropna()
+            ohlcv = pd.DataFrame(
+                {
+                    column: history_column(history, column)
+                    for column in ["Open", "High", "Low", "Close", "Volume"]
+                }
+            ).dropna()
 
             if close.empty:
                 raise ValueError("Close price data is empty.")
@@ -103,6 +116,7 @@ for ticker in TICKERS:
 
             close.name = ticker
             stock_data.append(close)
+            ohlcv_data[ticker] = ohlcv
 
             print(f"Successfully downloaded {ticker}")
             print("Available trading days:", len(close))
@@ -392,7 +406,46 @@ except Exception as e:
     print(f"Stock allocation failed: {e}")
 
 # ==========================================
-# 11. SAVE PORTFOLIO WEIGHTS
+# 11. DEMAND AND SUPPLY ANALYSIS
+# ==========================================
+
+print("\nDEMAND & SUPPLY ANALYSIS")
+print("-------------------------")
+print("Zones are informational only; they do not alter portfolio weights.\n")
+
+for ticker in prices.columns:
+    try:
+        analysis = detect_demand_supply_zones(ohlcv_data[ticker])
+        buy_zone = analysis["preferred_buying_zone"]
+        sell_zone = analysis["preferred_selling_zone"]
+
+        print(ticker)
+        if buy_zone is None:
+            print("  Preferred buying range: No valid demand zone found.")
+        else:
+            print(
+                "  Preferred buying range: "
+                f"{buy_zone['lower']:.2f} - {buy_zone['upper']:.2f} "
+                f"(strength {buy_zone['strength']:.1f}/100; {buy_zone['date'].date()})"
+            )
+        if sell_zone is None:
+            print("  Preferred selling range: No valid supply zone found.")
+        else:
+            print(
+                "  Preferred selling range: "
+                f"{sell_zone['lower']:.2f} - {sell_zone['upper']:.2f} "
+                f"(strength {sell_zone['strength']:.1f}/100; {sell_zone['date'].date()})"
+            )
+        print(
+            "  Zones found: "
+            f"{len(analysis['demand_zones'])} demand, "
+            f"{len(analysis['supply_zones'])} supply"
+        )
+    except (TypeError, ValueError, KeyError) as e:
+        print(f"{ticker}: Demand/supply analysis unavailable: {e}")
+
+# ==========================================
+# 12. SAVE PORTFOLIO WEIGHTS
 # ==========================================
 
 try:
